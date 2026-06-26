@@ -1,0 +1,11 @@
+# Dependencies (none today, but keep clean)
+node_modules/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.log
+
+# Local env overrides
+.env
+.env.local
