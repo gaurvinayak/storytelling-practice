@@ -21,6 +21,16 @@ function getProgress() { return DB.get(PROGRESS, {}); }
 function setGotIt(modId, val) { const p = getProgress(); p[modId] = { ...(p[modId]||{}), gotIt: val }; DB.set(PROGRESS, p); }
 function drillState(id) { return DB.get(DRILLS, {})[id] || {}; }
 function saveDrill(id, data) { const all = DB.get(DRILLS, {}); all[id] = { ...(all[id]||{}), ...data }; DB.set(DRILLS, all); }
+function getHistory(id) { return (DB.get(DRILLS, {})[id] || {}).history || []; }
+function pushHistory(id, entry) {
+  const all = DB.get(DRILLS, {});
+  const s = all[id] || (all[id] = {});
+  s.history = (s.history || []).concat(entry);
+  if (s.history.length > 50) s.history = s.history.slice(-50); // cap per question
+  s.feedback = entry.feedback; s.raw = entry.raw;               // mirror latest for restore
+  DB.set(DRILLS, all);
+}
+function clearHistory(id) { const all = DB.get(DRILLS, {}); if (all[id]) { delete all[id].history; delete all[id].feedback; delete all[id].raw; DB.set(DRILLS, all); } }
 
 function uid() { return Math.random().toString(36).slice(2, 10) + (performance.now()|0).toString(36); }
 function nowStr() { const d = new Date(); return d.toLocaleDateString() + " " + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
@@ -619,6 +629,38 @@ function feedbackHtml(fb, raw) {
     </div>`;
 }
 
+// One past attempt in the review panel: collapsed summary (when + score + verdict) → full feedback + what was submitted.
+function historyEntryHtml(e, n) {
+  const fb = e.feedback || {};
+  const score = (typeof fb.score === "number") ? fb.score : null;
+  return `<details class="hist-entry">
+    <summary><span class="hist-n">#${n}</span><span class="hist-when">${esc(e.atStr||"")}</span>${score!==null?`<span class="hist-score">${score}</span>`:""}<span class="hist-verdict">${esc(fb.verdict||"(feedback)")}</span></summary>
+    <div class="hist-detail">
+      ${feedbackHtml(fb, e.raw)}
+      ${e.input ? `<div class="hist-sub"><h4>What you submitted</h4><div class="fb-rewrite">${esc(e.input)}</div></div>` : ""}
+    </div>
+  </details>`;
+}
+
+// Fill a drill card's review panel with every PRIOR attempt (the latest is already shown above in .coach-out).
+function renderHistory(card, id) {
+  const box = card.querySelector(".coach-history");
+  if (!box) return;
+  const hist = getHistory(id);
+  if (hist.length <= 1) { box.innerHTML = ""; return; }
+  const prev = hist.slice(0, -1);                 // all but the latest
+  const items = prev.map((e, i) => historyEntryHtml(e, i + 1)).reverse().join(""); // newest-first
+  box.innerHTML = `<details class="history"><summary>Review previous feedback (${prev.length})</summary>
+    <div class="history-body">${items}
+      <button class="btn ghost sm hist-clear" type="button">Clear history for this question</button>
+    </div></details>`;
+  box.querySelector(".hist-clear").addEventListener("click", () => {
+    if (confirm("Delete all saved feedback for this question? This can't be undone.")) {
+      clearHistory(id); renderHistory(card, id); toast("History cleared.");
+    }
+  });
+}
+
 // Wire a "Coach me" button to gather input, call the API, render + persist feedback.
 function wireCoach(btn, getInput, task, outEl, drillId) {
   btn.addEventListener("click", async () => {
@@ -631,7 +673,11 @@ function wireCoach(btn, getInput, task, outEl, drillId) {
     try {
       const data = await callCoach(task, input);
       outEl.innerHTML = feedbackHtml(data.feedback, data.raw);
-      if (drillId) saveDrill(drillId, { feedback: data.feedback, raw: data.raw });
+      if (drillId) {
+        pushHistory(drillId, { atStr: nowStr(), input, feedback: data.feedback, raw: data.raw });
+        const card = btn.closest("[data-drill]");
+        if (card) renderHistory(card, drillId);
+      }
     } catch (e) {
       outEl.innerHTML = `<div class="card feedback"><p class="verdict" style="color:var(--warn)">Coaching failed</p><div class="muted">${esc(e.message)}</div><p class="tool-note">Is the server running? Coaching needs <code>node server.js</code>, not just opening the file.</p></div>`;
     } finally {
@@ -654,6 +700,7 @@ function drillShell(d, inner) {
       <span class="tool-note">Sends your work to Claude for a read.</span>
     </div>
     <div class="coach-out"></div>
+    <div class="coach-history"></div>
   </div>`;
 }
 
@@ -744,6 +791,7 @@ function mountDrill(d, root){
   // restore last feedback
   const st = drillState(d.id);
   if (st.feedback || st.raw) out.innerHTML = feedbackHtml(st.feedback, st.raw);
+  renderHistory(card, d.id);
 
   const save = (obj) => saveDrill(d.id, obj);
 

@@ -247,6 +247,28 @@ mark.abstract { background: rgba(255,180,84,0.18); color: #fde0b0; border-bottom
 .s-long { background: rgba(248,113,113,.16); border-radius: 3px; }
 .cap-num { font-family: var(--mono); font-size: 12px; color: var(--accent); margin: 22px 0 -6px; font-weight: 700; letter-spacing: .04em; }
 
+/* ---- Feedback history (review previous feedback) ---- */
+.coach-history { margin-top: 10px; }
+.history { border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2); }
+.history > summary { cursor: pointer; padding: 9px 13px; font-size: 13px; font-weight: 600; color: var(--ink-dim); list-style: none; user-select: none; }
+.history > summary::-webkit-details-marker { display: none; }
+.history > summary::before { content: "⟲  "; }
+.history[open] > summary { color: var(--ink); border-bottom: 1px solid var(--line); }
+.history-body { padding: 6px 12px 12px; }
+.hist-entry { border-bottom: 1px solid var(--line); }
+.hist-entry:last-of-type { border-bottom: none; }
+.hist-entry > summary { cursor: pointer; padding: 9px 2px; font-size: 13px; list-style: none; display: flex; gap: 10px; align-items: center; }
+.hist-entry > summary::-webkit-details-marker { display: none; }
+.hist-entry > summary::before { content: "▸"; color: var(--ink-faint); flex: none; }
+.hist-entry[open] > summary::before { content: "▾"; }
+.hist-n { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); flex: none; }
+.hist-when { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); flex: none; }
+.hist-score { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; flex: none; }
+.hist-verdict { color: var(--ink-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hist-detail { padding: 0 2px 8px; }
+.hist-sub h4 { margin: 10px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-faint); }
+.hist-clear { margin-top: 10px; }
+
 .toast {
   position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
   background: var(--panel-2); border:1px solid var(--line); color: var(--ink);
